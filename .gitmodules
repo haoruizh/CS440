@@ -1,0 +1,3 @@
+[submodule "HW2/HW2/wumpus-world-simulator"]
+	path = HW2/HW2/wumpus-world-simulator
+	url = https://github.com/holderlb/wumpus-world-simulator
