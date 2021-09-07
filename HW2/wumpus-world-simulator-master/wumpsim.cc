@@ -24,7 +24,8 @@ int main (int argc, char *argv[])
 {
 	int worldSize = 4;
 	int numTrials = 1;
-	int numTries = 1;
+	int numTries = 10;
+
 	unsigned seed;
 	char* worldFile;
 	bool seedSet = false;

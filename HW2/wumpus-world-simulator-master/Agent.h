@@ -5,10 +5,16 @@
 
 #include "Action.h"
 #include "Percept.h"
+#include "Orientation.h"
+#include "Location.h"
 
 class Agent
 {
 public:
+	Location *curLocate;
+	bool hasGold;
+	bool hasArrow;
+	Orientation curOrientation;
 	Agent ();
 	~Agent ();
 	void Initialize ();
