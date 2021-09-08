@@ -9,11 +9,13 @@ using namespace std;
 
 Agent::Agent ()
 {
+	// call initialize function
 	Initialize();
 }
 
 Agent::~Agent ()
 {
+	// free cur location pointer
 	free(curLocate);
 }
 
@@ -26,12 +28,9 @@ void Agent::Initialize ()
 }
 
 Action Agent::Process (Percept& percept)
-{
-	//char c;
-	
+{	
 	Action action;
-	cout << "Cur location: "<<"X: "<<this->curLocate->X << " Y: "<<this->curLocate->Y<<endl;
-	cout << "Cur orientation: "<<this->curOrientation<<endl;
+
 	// act based on the rules
 	if (curLocate->X == 1 && curLocate->Y == 1 && hasGold == true)
 	{
@@ -100,7 +99,7 @@ Action Agent::Process (Percept& percept)
 				// check if go forward is ok
 				if (this->curOrientation == RIGHT)
 				{
-					// go right
+					// go right, if the cur position X is less than 4 and no bump.
 					// for PA2 always assume world is 4*4
 					if (this->curLocate->X < 4&&percept.Bump == false)
 					{
@@ -109,7 +108,7 @@ Action Agent::Process (Percept& percept)
 				} 
 				else if (this->curOrientation == UP)
 				{
-					// go up
+					// go up, if the cur position Y is less than 4 and no bump.
 					// for PA2 always assume world is 4*4
 					if (this->curLocate->Y < 4&&percept.Bump == false)
 					{
@@ -118,7 +117,7 @@ Action Agent::Process (Percept& percept)
 				} 
 				else if (this->curOrientation == LEFT)
 				{
-					// go left
+					// go left, if the cur position X is larger than 1 and no bump.
 					if (this->curLocate->X > 1&&percept.Bump == false)
 					{
 						this->curLocate->X-=1;
@@ -126,7 +125,7 @@ Action Agent::Process (Percept& percept)
 				} 
 				else if (this->curOrientation == DOWN)
 				{
-					// go down
+					// go down,if the cur position Y is larger than 1 and no bump.
 					if (this->curLocate->Y > 1&&percept.Bump == false)
 					{
 						this->curLocate->Y-=1;
