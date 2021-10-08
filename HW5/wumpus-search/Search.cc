@@ -57,7 +57,7 @@ void SearchEngine::AddSafeLocation (int x, int y)
 		location.X = x;
 		location.Y = y;
 		safeLocations.push_back (location);
-		//cout << "Added safe location (" << x << "," << y << ")\n";
+		cout << "Added safe location (" << x << "," << y << ")\n";
 	}
 }
 
@@ -71,7 +71,7 @@ void SearchEngine::RemoveSafeLocation (int x, int y)
 	if (itr != safeLocations.end())
 	{
 		safeLocations.erase(itr);
-		//cout << "Removed safe location (" << x << "," << y << ")\n";
+		cout << "Removed safe location (" << x << "," << y << ")\n";
 	}
 }
 
