@@ -30,7 +30,6 @@ public:
 	Action Process (Percept& percept);
 	void GameOver (int score);
 	void HandleAction(Action& action, Percept& percept);
-	bool agentHasGold;
 	void AddAdjacent();
 	list<Action> actionList;
 	MySearchEngine searchEngine;

@@ -15,7 +15,7 @@ int MySearchEngine::HeuristicFunction(SearchState* state, SearchState* goalState
 	//return 0; // not a good heuristic
 	// Good heuristic: city-block distance from state to goalState
 	int city_block_distance = 0;
-	city_block_distance += abs(goalState->location.X-state->location.X);
+	city_block_distance += abs(goalState->location.X - state->location.X);
 	city_block_distance += abs(goalState->location.Y - state->location.Y);
 	return city_block_distance;
 }
@@ -26,9 +26,10 @@ Agent::Agent ()
 	Y = 1;
 	orientation = RIGHT;
 	hasArrow = true;
-	agentHasGold = false;
+	hasGold = false;
 	goldLocation = Location(0,0);
 	safeLocations.clear();
+	this->searchEngine = MySearchEngine();
 }
 
 Agent::~Agent ()
@@ -38,11 +39,15 @@ Agent::~Agent ()
 
 void Agent::Initialize ()
 {
+	cout << "Unsafe Location: " << X << " " << Y<<endl;
+	this->safeLocations.remove(Location(X,Y));
+	this->searchEngine.RemoveSafeLocation(X,Y);
+
 	X = 1;
 	Y = 1;
 	orientation = RIGHT;
 	hasArrow = true;
-	agentHasGold = false;
+	hasGold = false;
 	visited.clear ();
 	actionList.clear();
 }
@@ -52,52 +57,54 @@ Action Agent::Process (Percept& percept)
 	list<Action> actionList2;
 	Location curLocation = Location(X,Y);
 	visited.push_back(curLocation);
-	if (find(safeLocations.begin(), safeLocations.end(), curLocation)==safeLocations.end())
-	{
-		this->safeLocations.push_back(curLocation);
-		this->searchEngine.AddSafeLocation(X,Y);
-	}
+	this->safeLocations.push_back(curLocation);
+	this->searchEngine.AddSafeLocation(X,Y);
+	cout << "CurentLocation " << X << " " << Y << endl ;
+	cout << "Gold Location " << goldLocation.X << " " << goldLocation.Y << endl;
 
-	if (percept.Breeze == false && percept.Stench == false)
+	if (percept.Breeze == 0 && percept.Stench == 0)
 	{
 		AddAdjacent();
 	}
 	
 
-	if (! agentHasGold) {
+	if (!hasGold) 
+	{
 		// if agent does not know where gold is
 		if (goldLocation == Location(0,0))
 		{
 			// pick the last safe unvisited location and go there
-			list<Location>::iterator firstGo = safeLocations.begin();
+			list<Location>::iterator firstGo = safeLocations.end();
 			while (std::find(visited.begin(), visited.end(),*firstGo) != visited.end())
 			{
-				firstGo ++;
+				firstGo --;
 			}
 			
-			actionList2 = searchEngine.FindPath(curLocation, orientation, *firstGo, orientation);
-			actionList2.splice(actionList.end(), actionList2);
+			actionList2 = searchEngine.FindPath(curLocation, RIGHT, *firstGo, RIGHT);
+			actionList.splice(actionList.end(), actionList2);
 		}
 		else
 		{
 			// if agent know where gold is
-			actionList2 = searchEngine.FindPath(curLocation, orientation, goldLocation, orientation);
-			actionList2.splice(actionList.end(), actionList2);
+			actionList2 = searchEngine.FindPath(curLocation, RIGHT, goldLocation, RIGHT);
+			actionList.splice(actionList.end(), actionList2);
+			actionList.push_back(GRAB);
+
 		}
 	}
-	else if (agentHasGold)
+	else if (hasGold)
 	{
 		// if agent has gold
 		if( curLocation ==  Location(1,1))
 		{
 			// if can get out
-			actionList.push_back(CLIMB);
+			return CLIMB;
 		}
-		else if (!(curLocation == Location(1,1)))
+		else if (curLocation.X != 1 || curLocation.Y != 1)
 		{
 			// find a path to get out
-			actionList2 = searchEngine.FindPath(curLocation, orientation, Location(1,1), RIGHT);
-			actionList2.splice(actionList.end(), actionList2);
+			actionList2 = searchEngine.FindPath(curLocation, RIGHT, Location(1,1), RIGHT);
+			actionList.splice(actionList.end(), actionList2);
 		}
 	}
 
@@ -109,8 +116,24 @@ Action Agent::Process (Percept& percept)
 		actionList.push_back(GRAB);
 	}
 
-	Action action = actionList.front();
-	actionList.pop_front();
+	Action action;
+	if (actionList.empty())
+	{
+		list<Location>::iterator firstGo = safeLocations.begin();
+		while (std::find(visited.begin(), visited.end(),*firstGo) != visited.end())
+		{
+			firstGo --;
+		}
+		
+		actionList2 = searchEngine.FindPath(curLocation, orientation, *firstGo, orientation);
+		actionList.splice(actionList.end(), actionList2);
+	}
+	else
+	{
+		action = actionList.front();
+		actionList.pop_front();
+	}
+	cout << "Gold: "+ goldLocation.X + ' ' + goldLocation.Y + '\n';
 	HandleAction(action, percept);
 
 	return action;
@@ -249,8 +272,6 @@ void Agent::AddAdjacent()
 
 void Agent::GameOver (int score)
 {
-	this->safeLocations.remove(Location(X,Y));
-	this->searchEngine.RemoveSafeLocation(X,Y);
 }
 
 
