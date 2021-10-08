@@ -6,6 +6,7 @@
 #include <list>
 #include <cstdlib>
 #include "Agent.h"
+#include <algorithm>
 
 using namespace std;
 
@@ -27,15 +28,7 @@ Agent::Agent ()
 	hasArrow = true;
 	agentHasGold = false;
 	goldLocation = Location(0,0);
-	// assume everywhere is safe first
-	for (int i = 1; i <= 9; i++)
-	{
-		for (int j = 1; j <= 9; j++)
-		{
-			safeLocations.push_back(Location(i,j));
-			this->searchEngine.AddSafeLocation(i,j);
-		}
-	}
+	safeLocations.clear();
 }
 
 Agent::~Agent ()
@@ -51,7 +44,6 @@ void Agent::Initialize ()
 	hasArrow = true;
 	agentHasGold = false;
 	visited.clear ();
-	visited.push_back(Location(1,1));
 	actionList.clear();
 }
 
@@ -59,46 +51,53 @@ Action Agent::Process (Percept& percept)
 {
 	list<Action> actionList2;
 	Location curLocation = Location(X,Y);
-
-	if (actionList.empty()) 
+	visited.push_back(curLocation);
+	if (find(safeLocations.begin(), safeLocations.end(), curLocation)==safeLocations.end())
 	{
+		this->safeLocations.push_back(curLocation);
+		this->searchEngine.AddSafeLocation(X,Y);
+	}
 
-		if (! agentHasGold) {
-			// if agent does not know where gold is
-			if (goldLocation == Location(0,0))
+	if (percept.Breeze == false && percept.Stench == false)
+	{
+		AddAdjacent();
+	}
+	
+
+	if (! agentHasGold) {
+		// if agent does not know where gold is
+		if (goldLocation == Location(0,0))
+		{
+			// pick the last safe unvisited location and go there
+			list<Location>::iterator firstGo = safeLocations.begin();
+			while (std::find(visited.begin(), visited.end(),*firstGo) != visited.end())
 			{
-				// pick the last safe unvisited location and go there
-				list<Location>::iterator firstGo = safeLocations.begin();
-				while (find(visited.begin(), visited.end(),*firstGo) != visited.end())
-				{
-					firstGo ++;
-				}
-				
-				actionList2 = searchEngine.FindPath(curLocation, orientation, *firstGo, orientation);
-				actionList2.splice(actionList.end(), actionList2);
-			}
-			else
-			{
-				// if agent know where gold is
-				actionList2 = searchEngine.FindPath(curLocation, orientation, goldLocation, orientation);
-				actionList2.splice(actionList.end(), actionList2);
+				firstGo ++;
 			}
 			
+			actionList2 = searchEngine.FindPath(curLocation, orientation, *firstGo, orientation);
+			actionList2.splice(actionList.end(), actionList2);
 		}
-		else if (agentHasGold)
+		else
 		{
-			// if agent has gold
-			if( curLocation ==  Location(1,1))
-			{
-				// if can get out
-				actionList.push_back(CLIMB);
-			}
-			else if (!(curLocation == Location(1,1)))
-			{
-				// find a path to get out
-				actionList2 = searchEngine.FindPath(curLocation, orientation, Location(1,1), RIGHT);
-				actionList2.splice(actionList.end(), actionList2);
-			}
+			// if agent know where gold is
+			actionList2 = searchEngine.FindPath(curLocation, orientation, goldLocation, orientation);
+			actionList2.splice(actionList.end(), actionList2);
+		}
+	}
+	else if (agentHasGold)
+	{
+		// if agent has gold
+		if( curLocation ==  Location(1,1))
+		{
+			// if can get out
+			actionList.push_back(CLIMB);
+		}
+		else if (!(curLocation == Location(1,1)))
+		{
+			// find a path to get out
+			actionList2 = searchEngine.FindPath(curLocation, orientation, Location(1,1), RIGHT);
+			actionList2.splice(actionList.end(), actionList2);
 		}
 	}
 
@@ -106,22 +105,13 @@ Action Agent::Process (Percept& percept)
 	{
 		// if get the gold
 		// update gold location
-		goldLocation =curLocation;
+		goldLocation = curLocation;
 		actionList.push_back(GRAB);
-	}
-
-	if (percept.Breeze == true || percept.Bump == true || percept.Stench == true)
-	{
-		// if breeze or bump or stench
-		// unsafe location
-		this->searchEngine.RemoveSafeLocation(X,Y);
-		this->safeLocations.remove(curLocation);
 	}
 
 	Action action = actionList.front();
 	actionList.pop_front();
 	HandleAction(action, percept);
-	this->visited.push_back(curLocation);
 
 	return action;
 }
@@ -185,7 +175,10 @@ void Agent::HandleAction(Action& action, Percept& percept)
 			// go right, if the cur position no bump.
 			if (percept.Bump == false)
 			{
-				this->X += 1;
+				if (find(visited.begin(), visited.end(), Location(X+1,Y))==visited.end()&&find(safeLocations.begin(), safeLocations.end(), Location(X+1,Y))!= safeLocations.end())
+				{
+					this->X += 1;
+				}
 			}
 
 		} 
@@ -194,7 +187,7 @@ void Agent::HandleAction(Action& action, Percept& percept)
 			// go up, if the cur position no bump.
 			if (percept.Bump == false)
 			{
-				if (find(visited.begin(), visited.end(), Location(X,Y+1))==visited.end())
+				if (find(visited.begin(), visited.end(), Location(X,Y+1))==visited.end() && find(safeLocations.begin(), safeLocations.end(), Location(X,Y-1))!= safeLocations.end())
 				{
 					this->Y += 1;
 				}
@@ -203,25 +196,61 @@ void Agent::HandleAction(Action& action, Percept& percept)
 		else if (this->orientation == LEFT)
 		{
 			// go left, if the cur position X is larger than 1 and no bump.
-			if (this->X > 1&&percept.Bump == false)
+			if (percept.Bump == false)
 			{
-				this->X -= 1;
+				if (find(visited.begin(), visited.end(), Location(X-1,Y))==visited.end() && find(safeLocations.begin(), safeLocations.end(), Location(X-1,Y))!= safeLocations.end())
+				{
+					this->X -= 1;
+				}
 			} 
 		} 
 		else if (this->orientation == DOWN)
 		{
 			// go down,if the cur position Y is larger than 1 and no bump.
-			if (this->Y > 1 && percept.Bump == false)
+			if (percept.Bump == false)
 			{
-				this->Y -= 1;
+				if (find(visited.begin(), visited.end(), Location(X,Y-1))==visited.end() && find(safeLocations.begin(), safeLocations.end(), Location(X,Y-1))!= safeLocations.end())
+				{
+					this->Y -= 1;
+				}
 			}
 		}
 	}	
 }
 
+
+void Agent::AddAdjacent()
+{
+	// add adjacent nodes of current location
+		if (find(safeLocations.begin(), safeLocations.end(), Location(X+1, Y))==safeLocations.end())
+		{
+			this->safeLocations.push_back(Location(X+1,Y));
+			this->searchEngine.AddSafeLocation(X+1,Y);
+		}
+
+		if (find(safeLocations.begin(), safeLocations.end(), Location(X, Y+1))==safeLocations.end())
+		{
+			this->safeLocations.push_back(Location(X,Y+1));
+			this->searchEngine.AddSafeLocation(X,Y+1);
+		}
+
+		if (find(safeLocations.begin(), safeLocations.end(), Location(X-1, Y))==safeLocations.end())
+		{
+			this->safeLocations.push_back(Location(X-1,Y));
+			this->searchEngine.AddSafeLocation(X-1,Y);
+		}
+
+		if (find(safeLocations.begin(), safeLocations.end(), Location(X, Y-1))==safeLocations.end())
+		{
+			this->safeLocations.push_back(Location(X,Y-1));
+			this->searchEngine.AddSafeLocation(X,Y-1);
+		}
+}
+
 void Agent::GameOver (int score)
 {
-
+	this->safeLocations.remove(Location(X,Y));
+	this->searchEngine.RemoveSafeLocation(X,Y);
 }
 
 
