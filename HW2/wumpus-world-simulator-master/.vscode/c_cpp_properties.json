@@ -5,7 +5,6 @@
       "includePath": [
         "${workspaceFolder}/**"
       ],
-      "windowsSdkVersion": "10.0.18362.0",
       "compilerPath": "C:\\msys64\\mingw64\\bin\\gcc.exe",
       "cStandard": "${default}",
       "cppStandard": "${default}",
