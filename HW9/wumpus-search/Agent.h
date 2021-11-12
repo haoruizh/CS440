@@ -33,13 +33,19 @@ public:
 	bool MemberLocation(Location& location, list<Location>& locationList);
 	void UpdateSafeLocations(Location& location);
 	void RemoveOutsideLocations();
+	vector<Location> FindCommonAdjacents(Location& locationA, Location& locationB);
 	void AdjacentLocations(Location& location, list<Location>& adjacentLocations);
-
+	void UpdateWumpusLocation(Location& location);
+	bool IsDiagonal(Location& locationA, Location& locationB);
+	bool IsSafe(Location& location);
+	bool IsPit(Location& location);
+	
 	WorldState worldState;
 	bool worldSizeKnown;
 	list<Location> visitedLocations;
 	list<Location> safeLocations; // For HW5, means not known to be unsafe
 	list<Location> unsafeLocations;
+	list<Location> stenchLocations;
 	list<Action> actionList;
 	MySearchEngine searchEngine;
 	Action lastAction;
