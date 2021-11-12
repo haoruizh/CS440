@@ -30,6 +30,7 @@ Agent::Agent ()
 	worldState.goldLocation = Location(0,0); // unknown
 	worldState.wumpusLocation = Location(0,0); //unknown
 	worldState.wumpusAlive = true;
+	worldState.agentHasArrow = true;
 }
 
 Agent::~Agent ()
@@ -83,14 +84,16 @@ Action Agent::Process (Percept& percept)
 		{
 			if (!(worldState.wumpusLocation == Location(0,0)) && worldState.wumpusAlive == true && (worldState.agentHasArrow = true))
 			{
-				// HW9.4 a If the agent knows the location of the live Wumpus, and there is a safe location facing the Wumpus,
-				// then the agent should move there and shoot the Wumpus.
-				for (auto i = stenchLocations.begin(); i!=stenchLocations.end(); i++)
+				cout << "No gold, no safe unvisited location.\n";
+				
+				for (auto i = stenchLocations.begin(); i != stenchLocations.end(); i++)
 				{
+					// HW9.4 a If the agent knows the location of the live Wumpus, and there is a safe location facing the Wumpus,
+					// then the agent should move there and shoot the Wumpus.
 					Location cur =  *i;
 					if (MemberLocation(cur, safeLocations))
 					{
-						cout << "Can kill wumpus, visit safe location, turn to wumpus and kill wumpus\n";
+						cout << "Can kill wumpus: "<<worldState.wumpusLocation.X<<","<<worldState.wumpusLocation.Y << "visit safe location "<< cur.X << " , "<< cur.Y << " , turn to wumpus and kill wumpus\n";
 						actionList2 = searchEngine.FindPath(worldState.agentLocation, worldState.agentOrientation, cur, UP);
 						if (actionList2.empty())
 						{
@@ -102,21 +105,21 @@ Action Agent::Process (Percept& percept)
 						{
 							// below the agent
 							cout << "wumpus below agent, turn down toward the wumpus\n";
-							actionList2 = searchEngine.FindPath(worldState.agentLocation, worldState.agentOrientation, cur, DOWN);
+							actionList2 = searchEngine.FindPath(worldState.agentLocation, worldState.agentOrientation, worldState.agentLocation, DOWN);
 							actionList.splice(actionList.end(), actionList2);
 						}
 						else if (worldState.wumpusLocation.Y == cur.Y && worldState.wumpusLocation.X == cur.X-1)
 						{
 							// right to the agent
-							cout << "wumpus below agent, turn right toward the wumpus\n";
-							actionList2 = searchEngine.FindPath(worldState.agentLocation, worldState.agentOrientation, cur, RIGHT);
+							cout << "wumpus right to the agent, turn right toward the wumpus\n";
+							actionList2 = searchEngine.FindPath(worldState.agentLocation, worldState.agentOrientation, worldState.agentLocation, RIGHT);
 							actionList.splice(actionList.end(), actionList2);
 						}
 						else if (worldState.wumpusLocation.Y == cur.Y && worldState.wumpusLocation.X == cur.X+1)
 						{
 							// left to the agent
-							cout << "wumpus below agent, turn left toward the wumpus\n";
-							actionList2 = searchEngine.FindPath(worldState.agentLocation, worldState.agentOrientation, cur, LEFT);
+							cout << "wumpus left to agent, turn left toward the wumpus\n";
+							actionList2 = searchEngine.FindPath(worldState.agentLocation, worldState.agentOrientation, worldState.agentLocation, LEFT);
 							actionList.splice(actionList.end(), actionList2);
 						}
 						actionList.push_back(SHOOT);
@@ -124,12 +127,20 @@ Action Agent::Process (Percept& percept)
 					}
 				}
 			}
-			else if (worldState.wumpusAlive == false)
+			else if (worldState.wumpusAlive == false || ((!(worldState.wumpusLocation == Location(0,0)) && worldState.wumpusAlive == true && (worldState.agentHasArrow = false))))
 			{
 				// HW 9.4 b If the Wumpus is dead or cannot be killed, then the agent should move to an unvisited location
 				// that is not known to be unsafe.
-				cout << "Can't kill wumpus, visit unvisited safe location.\n";
-				actionList2 = searchEngine.FindPath(worldState.agentLocation, worldState.agentOrientation, SafeUnvisitedLocation(), worldState.agentOrientation);
+				cout << "wumpus already dead or can't be killed, visit unvisited safe location.\n";
+				if (worldState.goldLocation == Location(0,0))
+				{
+					actionList2 = searchEngine.FindPath(worldState.agentLocation, worldState.agentOrientation, SafeUnvisitedLocation(), worldState.agentOrientation);
+				}
+				else
+				{
+					actionList2 = searchEngine.FindPath(worldState.agentLocation, worldState.agentOrientation, worldState.goldLocation, worldState.agentOrientation);
+				}
+				
 				actionList.splice(actionList.end(), actionList2);
 			}
 		} 
@@ -238,16 +249,23 @@ void Agent::UpdateState(Action lastAction, Percept& percept, bool gameOver) {
 	}
 
 	// HW9 code start here
-
 	if (percept.Scream)
 	{
+		// wumpus killed, update its location as safe
+		cout << "wumpus died!\n";
+		unsafeLocations.remove(worldState.wumpusLocation);
+		UpdateSafeLocations(worldState.wumpusLocation);
+		Location newWumpus = Location(0,0);
+		UpdateWumpusLocation(newWumpus);
 		worldState.wumpusAlive = false;
 	}
 	// HW9 requirement 2
 	if (percept.Stench)
 	{
-		if (MemberLocation(worldState.agentLocation, stenchLocations) == false)
+		cout << "Find stench"<< worldState.agentLocation.X << " " << worldState.agentLocation.Y << "\n";
+		if (find(stenchLocations.begin(), stenchLocations.end(), worldState.agentLocation) == stenchLocations.end())
 		{
+			cout<<"add new stench\n";
 			stenchLocations.push_back(worldState.agentLocation);
 		}
 	}
@@ -255,51 +273,58 @@ void Agent::UpdateState(Action lastAction, Percept& percept, bool gameOver) {
 	// HW9 requirement 3
 	// If there are two stench locations in a diagonal arrangement, and one of their
 	// common adjacent locations is safe, then the other common adjacent location contains the Wumpus
-	for (auto first = stenchLocations.begin(); first != stenchLocations.end(); ++first)
+	if (worldState.wumpusAlive== true && stenchLocations.size() >= 2)
 	{
-		for(auto second = stenchLocations.begin(); second != stenchLocations.end(); ++second)
+		for (auto first = stenchLocations.begin(); first != stenchLocations.end(); ++first)
 		{
-			// iterative through stench locations in two loops
-			Location locationA = *first;
-			Location locationB = *second;
-			if (IsDiagonal(locationA, locationB))
+			for(auto second = stenchLocations.begin(); second != stenchLocations.end(); ++second)
 			{
-				// if locationA and locationB are diagonal.
-				vector<Location> commonAdjacents = FindCommonAdjacents(locationA, locationB);
-				if (IsSafe(commonAdjacents[0]))
+				// iterative through stench locations in two loops
+				Location locationA = *first;
+				Location locationB = *second;
+				if (IsDiagonal(locationA, locationB))
 				{
-					// if first adjacent location is safe, the second one contains wumpus
-					UpdateWumpusLocation(commonAdjacents[1]);
-					// remove wumpus location from safe if wumpus is alive
-					if (MemberLocation(commonAdjacents[1], safeLocations) && worldState.wumpusAlive==true)
+					cout << "Two stenches are diagonal" << "Stench A: "<< locationA.X << " " << locationA.Y << " Stench B: " << locationB.X << " " << locationB.Y <<endl;
+					// if locationA and locationB are diagonal.
+					vector<Location> commonAdjacents = FindCommonAdjacents(locationA, locationB);
+					if (IsSafe(commonAdjacents[0]))
 					{
-						safeLocations.remove(commonAdjacents[1]);
-						
+						// if first adjacent location is safe, the second one contains wumpus
+						cout << "Wumpus location" << commonAdjacents[1].X << ", " << commonAdjacents[1].Y << "\n";
+						UpdateWumpusLocation(commonAdjacents[1]);
+						// remove wumpus location from safe if wumpus is alive
+						if (MemberLocation(commonAdjacents[1], safeLocations) && worldState.wumpusAlive==true)
+						{
+							safeLocations.remove(commonAdjacents[1]);
+							
+						}
+						// add wumpus location to unsafe if wumpus is alive
+						if (!MemberLocation(commonAdjacents[1], unsafeLocations) && worldState.wumpusAlive == true) 
+						{
+							unsafeLocations.push_back(commonAdjacents[1]);
+						}
 					}
-					// add wumpus location to unsafe if wumpus is alive
-					if (!MemberLocation(commonAdjacents[1], unsafeLocations) && worldState.wumpusAlive == true) 
+					else if (IsSafe(commonAdjacents[1]))
 					{
-						unsafeLocations.push_back(commonAdjacents[1]);
-					}
-				}
-				else if (IsSafe(commonAdjacents[1]))
-				{
-					// if second adjacent location is safe, the first one contains wumpus
-					UpdateWumpusLocation(commonAdjacents[0]);
-					// remove wumpus location from safe if wumpus is alive
-					if (MemberLocation(commonAdjacents[0], safeLocations) && worldState.wumpusAlive==true)
-					{
-						safeLocations.remove(commonAdjacents[0]);
-					}
-					// add wumpus location to unsafe if wumpus is alive
-					if (!MemberLocation(commonAdjacents[0], unsafeLocations) && worldState.wumpusAlive == true) 
-					{
-						unsafeLocations.push_back(commonAdjacents[0]);
+						// if second adjacent location is safe, the first one contains wumpus
+						cout << "Wumpus location" << commonAdjacents[0].X << ", " << commonAdjacents[0].Y << "\n";
+						UpdateWumpusLocation(commonAdjacents[0]);
+						// remove wumpus location from safe if wumpus is alive
+						if (MemberLocation(commonAdjacents[0], safeLocations) && worldState.wumpusAlive==true)
+						{
+							safeLocations.remove(commonAdjacents[0]);
+						}
+						// add wumpus location to unsafe if wumpus is alive
+						if (!MemberLocation(commonAdjacents[0], unsafeLocations) && worldState.wumpusAlive == true) 
+						{
+							unsafeLocations.push_back(commonAdjacents[0]);
+						}
 					}
 				}
 			}
 		}
 	}
+	
 }
 
 bool Agent::MemberLocation(Location& location, list<Location>& locationList) {
@@ -416,7 +441,7 @@ vector<Location> Agent::FindCommonAdjacents(Location& locationA, Location& locat
 
 bool Agent::IsSafe(Location& location)
 {
-	if (find(safeLocations.begin(), safeLocations.end(), location) != safeLocations.end())
+	if (find(safeLocations.begin(), safeLocations.end(), location) != safeLocations.end() && find(unsafeLocations.begin(), unsafeLocations.end(), location)!=unsafeLocations.end())
 	{
 		return true;
 	}
